@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>看房记录</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        h1 { text-align: center; margin-bottom: 20px; color: #333; }
+        
+        .tabs { display: flex; gap: 10px; margin-bottom: 20px; }
+        .tab { padding: 10px 20px; border: none; background: #fff; cursor: pointer; border-radius: 8px; font-size: 16px; transition: all 0.3s; }
+        .tab.active { background: #007bff; color: #fff; }
+        
+        .form-card { background: #fff; padding: 20px; border-radius: 12px; margin-bottom: 20px; display: none; }
+        .form-card.active { display: block; }
+        
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: 500; color: #555; }
+        input, select, textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; }
+        textarea { resize: vertical; min-height: 80px; }
+        
+        .rating-group { display: flex; gap: 15px; flex-wrap: wrap; }
+        .rating-item { flex: 1; min-width: 150px; }
+        .rating-item input { width: 60px; }
+        
+        .btn { padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; transition: all 0.3s; }
+        .btn-primary { background: #007bff; color: #fff; }
+        .btn-primary:hover { background: #0056b3; }
+        .btn-danger { background: #dc3545; color: #fff; }
+        
+        .house-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 20px; }
+        .house-card { background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .house-header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #fff; padding: 15px; }
+        .house-title { font-size: 18px; font-weight: bold; }
+        .house-address { font-size: 14px; opacity: 0.9; margin-top: 5px; }
+        .house-body { padding: 15px; }
+        .house-price { font-size: 24px; color: #e74c3c; font-weight: bold; margin-bottom: 10px; }
+        .house-tags { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 10px; }
+        .tag { padding: 4px 8px; background: #e9ecef; border-radius: 4px; font-size: 12px; }
+        .house-desc { color: #666; font-size: 14px; margin-bottom: 15px; }
+        
+        .ratings { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 15px; }
+        .rating-box { text-align: center; padding: 8px; background: #f8f9fa; border-radius: 6px; }
+        .rating-label { font-size: 12px; color: #666; }
+        .rating-value { font-size: 18px; font-weight: bold; color: #007bff; }
+        
+        .house-actions { display: flex; gap: 10px; }
+        .house-actions .btn { flex: 1; padding: 8px; font-size: 14px; }
+        
+        .compare-bar { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; padding: 15px; box-shadow: 0 -2px 10px rgba(0,0,0,0.1); display: none; }
+        .compare-bar.active { display: block; }
+        .compare-content { max-width: 1200px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; }
+        .compare-list { display: flex; gap: 10px; }
+        .compare-item { padding: 5px 10px; background: #e9ecef; border-radius: 4px; font-size: 14px; }
+        
+        .favorites-view .house-card { cursor: pointer; }
+        
+        .empty { text-align: center; padding: 40px; color: #999; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏠 看房记录</h1>
+        
+        <div class="tabs">
+            <button class="tab active" onclick="showTab('list')">房源列表</button>
+            <button class="tab" onclick="showTab('add')">添加房源</button>
+            <button class="tab" onclick="showTab('favorites')">收藏夹</button>
+            <button class="tab" onclick="showTab('compare')">对比</button>
+        </div>
+        
+        <div id="list" class="form-card active">
+            <div class="house-list" id="houseList"></div>
+        </div>
+        
+        <div id="add" class="form-card">
+            <div class="form-group">
+                <label>房源名称</label>
+                <input type="text" id="houseName" placeholder="如：XX小区A栋">
+            </div>
+            <div class="form-group">
+                <label>地址</label>
+                <input type="text" id="houseAddress" placeholder="详细地址">
+            </div>
+            <div class="form-group">
+                <label>价格（万元）</label>
+                <input type="number" id="housePrice" placeholder="如：150">
+            </div>
+            <div class="form-group">
+                <label>户型</label>
+                <input type="text" id="houseLayout" placeholder="如：3室2厅1卫">
+            </div>
+            <div class="form-group">
+                <label>面积（㎡）</label>
+                <input type="number" id="houseArea" placeholder="如：120">
+            </div>
+            <div class="form-group">
+                <label>备注</label>
+                <textarea id="houseDesc" placeholder="其他备注信息..."></textarea>
+            </div>
+            <div class="rating-group">
+                <div class="rating-item">
+                    <label>地段评分 (1-10)</label>
+                    <input type="number" id="ratingLocation" min="1" max="10" value="5">
+                </div>
+                <div class="rating-item">
+                    <label>户型评分 (1-10)</label>
+                    <input type="number" id="ratingLayout" min="1" max="10" value="5">
+                </div>
+                <div class="rating-item">
+                    <label>采光评分 (1-10)</label>
+                    <input type="number" id="ratingLight" min="1" max="10" value="5">
+                </div>
+                <div class="rating-item">
+                    <label>装修评分 (1-10)</label>
+                    <input type="number" id="ratingDecor" min="1" max="10" value="5">
+                </div>
+                <div class="rating-item">
+                    <label>楼层评分 (1-10)</label>
+                    <input type="number" id="ratingFloor" min="1" max="10" value="5">
+                </div>
+            </div>
+            <button class="btn btn-primary" onclick="addHouse()">保存房源</button>
+        </div>
+        
+        <div id="favorites" class="form-card favorites-view">
+            <div class="house-list" id="favoritesList"></div>
+        </div>
+        
+        <div id="compare" class="form-card">
+            <div class="house-list" id="compareList"></div>
+        </div>
+    </div>
+    
+    <div class="compare-bar" id="compareBar">
+        <div class="compare-content">
+            <div class="compare-list" id="compareListBar"></div>
+            <button class="btn btn-primary" onclick="showCompare()">开始对比</button>
+        </div>
+    </div>
+    
+    <script>
+        let houses = JSON.parse(localStorage.getItem('houses') || '[]');
+        let favorites = JSON.parse(localStorage.getItem('favorites') || '[]');
+        let compareItems = JSON.parse(localStorage.getItem('compare') || '[]');
+        
+        function saveData() {
+            localStorage.setItem('houses', JSON.stringify(houses));
+            localStorage.setItem('favorites', JSON.stringify(favorites));
+            localStorage.setItem('compare', JSON.stringify(compareItems));
+        }
+        
+        function showTab(tabId) {
+            document.querySelectorAll('.form-card').forEach(c => c.classList.remove('active'));
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            event.target.classList.add('active');
+            
+            if (tabId === 'list') renderList();
+            if (tabId === 'favorites') renderFavorites();
+            if (tabId === 'compare') renderCompare();
+        }
+        
+        function addHouse() {
+            const house = {
+                id: Date.now(),
+                name: document.getElementById('houseName').value,
+                address: document.getElementById('houseAddress').value,
+                price: document.getElementById('housePrice').value,
+                layout: document.getElementById('houseLayout').value,
+                area: document.getElementById('houseArea').value,
+                desc: document.getElementById('houseDesc').value,
+                ratings: {
+                    location: document.getElementById('ratingLocation').value,
+                    layout: document.getElementById('ratingLayout').value,
+                    light: document.getElementById('ratingLight').value,
+                    decor: document.getElementById('ratingDecor').value,
+                    floor: document.getElementById('ratingFloor').value
+                },
+                createdAt: new Date().toLocaleDateString()
+            };
+            
+            if (!house.name) { alert('请输入房源名称'); return; }
+            
+            houses.unshift(house);
+            saveData();
+            alert('保存成功！');
+            
+            document.querySelectorAll('input, textarea').forEach(i => i.value = '');
+            document.querySelectorAll('input[type="number"]').forEach(i => i.value = 5);
+            showTab('list');
+        }
+        
+        function getAvgRating(ratings) {
+            const vals = Object.values(ratings).map(Number);
+            return (vals.reduce((a,b) => a+b, 0) / vals.length).toFixed(1);
+        }
+        
+        function renderList() {
+            const list = document.getElementById('houseList');
+            if (houses.length === 0) {
+                list.innerHTML = '<div class="empty">暂无房源，点击"添加房源"开始记录</div>';
+                return;
+            }
+            
+            list.innerHTML = houses.map(h => `
+                <div class="house-card">
+                    <div class="house-header">
+                        <div class="house-title">${h.name}</div>
+                        <div class="house-address">${h.address}</div>
+                    </div>
+                    <div class="house-body">
+                        <div class="house-price">${h.price}万</div>
+                        <div class="house-tags">
+                            <span class="tag">${h.layout}</span>
+                            <span class="tag">${h.area}㎡</span>
+                        </div>
+                        <div class="ratings">
+                            <div class="rating-box">
+                                <div class="rating-label">地段</div>
+                                <div class="rating-value">${h.ratings.location}</div>
+                            </div>
+                            <div class="rating-box">
+                                <div class="rating-label">户型</div>
+                                <div class="rating-value">${h.ratings.layout}</div>
+                            </div>
+                            <div class="rating-box">
+                                <div class="rating-label">综合</div>
+                                <div class="rating-value">${getAvgRating(h.ratings)}</div>
+                            </div>
+                        </div>
+                        ${h.desc ? `<div class="house-desc">${h.desc}</div>` : ''}
+                        <div class="house-actions">
+                            <button class="btn ${favorites.includes(h.id) ? 'btn-danger' : 'btn-primary'}" onclick="toggleFavorite(${h.id})">
+                                ${favorites.includes(h.id) ? '★ 已收藏' : '☆ 收藏'}
+                            </button>
+                            <button class="btn ${compareItems.includes(h.id) ? 'btn-danger' : 'btn-primary'}" onclick="toggleCompare(${h.id})">
+                                ${compareItems.includes(h.id) ? '✓ 已对比' : '+ 对比'}
+                            </button>
+                            <button class="btn btn-danger" onclick="deleteHouse(${h.id})">删除</button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function renderFavorites() {
+            const list = document.getElementById('favoritesList');
+            const favHouses = houses.filter(h => favorites.includes(h.id));
+            if (favHouses.length === 0) {
+                list.innerHTML = '<div class="empty">暂无收藏</div>';
+                return;
+            }
+            list.innerHTML = favHouses.map(h => `
+                <div class="house-card" onclick="toggleFavorite(${h.id})">
+                    <div class="house-header">
+                        <div class="house-title">${h.name} ⭐</div>
+                        <div class="house-address">${h.address}</div>
+                    </div>
+                    <div class="house-body">
+                        <div class="house-price">${h.price}万</div>
+                        <div class="house-tags">
+                            <span class="tag">${h.layout}</span>
+                            <span class="tag">${h.area}㎡</span>
+                        </div>
+                        <div class="ratings">
+                            <div class="rating-box">
+                                <div class="rating-value">${getAvgRating(h.ratings)}</div>
+                                <div class="rating-label">综合评分</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function renderCompare() {
+            const list = document.getElementById('compareList');
+            const compareHouses = houses.filter(h => compareItems.includes(h.id));
+            if (compareHouses.length < 2) {
+                list.innerHTML = '<div class="empty">请至少选择2个房源进行对比</div>';
+                return;
+            }
+            
+            list.innerHTML = `
+                <table style="width:100%;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden;">
+                    <tr style="background:#f8f9fa;">
+                        <th style="padding:15px;text-align:left;border:1px solid #dee2e6;">项目</th>
+                        ${compareHouses.map(h => `<th style="padding:15px;text-align:center;border:1px solid #dee2e6;">${h.name}</th>`).join('')}
+                    </tr>
+                    <tr>
+                        <td style="padding:15px;border:1px solid #dee2e6;">价格</td>
+                        ${compareHouses.map(h => `<td style="padding:15px;text-align:center;border:1px solid #dee2e6;font-weight:bold;color:#e74c3c;">${h.price}万</td>`).join('')}
+                    </tr>
+                    <tr>
+                        <td style="padding:15px;border:1px solid #dee2e6;">户型</td>
+                        ${compareHouses.map(h => `<td style="padding:15px;text-align:center;border:1px solid #dee2e6;">${h.layout}</td>`).join('')}
+                    </tr>
+                    <tr>
+                        <td style="padding:15px;border:1px solid #dee2e6;">面积</td>
+                        ${compareHouses.map(h => `<td style="padding:15px;text-align:center;border:1px solid #dee2e6;">${h.area}㎡</td>`).join('')}
+                    </tr>
+                    <tr>
+                        <td style="padding:15px;border:1px solid #dee2e6;">单价</td>
+                        ${compareHouses.map(h => `<td style="padding:15px;text-align:center;border:1px solid #dee2e6;">${(h.price*10000/h.area).toFixed(0)}元/㎡</td>`).join('')}
+                    </tr>
+                    <tr>
+                        <td style="padding:15px;border:1px solid #dee2e6;">地段</td>
+                        ${compareHouses.map(h => `<td style="padding:15px;text-align:center;border:1px solid #dee2e6;">${h.ratings.location}</td>`).join('')}
+                    </tr>
+                    <tr>
+                        <td style="padding:15px;border:1px solid #dee2e6;">户型</td>
+                        ${compareHouses.map(h => `<td style="padding:15px;text-align:center;border:1px solid #dee2e6;">${h.ratings.layout}</td>`).join('')}
+                    </tr>
+                    <tr>
+                        <td style="padding:15px;border:1px solid #dee2e6;">采光</td>
+                        ${compareHouses.map(h => `<td style="padding:15px;text-align:center;border:1px solid #dee2e6;">${h.ratings.light}</td>`).join('')}
+                    </tr>
+                    <tr>
+                        <td style="padding:15px;border:1px solid #dee2e6;">装修</td>
+                        ${compareHouses.map(h => `<td style="padding:15px;text-align:center;border:1px solid #dee2e6;">${h.ratings.decor}</td>`).join('')}
+                    </tr>
+                    <tr>
+                        <td style="padding:15px;border:1px solid #dee2e6;">楼层</td>
+                        ${compareHouses.map(h => `<td style="padding:15px;text-align:center;border:1px solid #dee2e6;">${h.ratings.floor}</td>`).join('')}
+                    </tr>
+                    <tr style="background:#e8f4ff;">
+                        <td style="padding:15px;border:1px solid #dee2e6;font-weight:bold;">综合评分</td>
+                        ${compareHouses.map(h => `<td style="padding:15px;text-align:center;border:1px solid #dee2e6;font-weight:bold;font-size:20px;color:#007bff;">${getAvgRating(h.ratings)}</td>`).join('')}
+                    </tr>
+                </table>
+            `;
+        }
+        
+        function toggleFavorite(id) {
+            if (favorites.includes(id)) {
+                favorites = favorites.filter(f => f !== id);
+            } else {
+                favorites.push(id);
+            }
+            saveData();
+            renderList();
+        }
+        
+        function toggleCompare(id) {
+            if (compareItems.includes(id)) {
+                compareItems = compareItems.filter(c => c !== id);
+            } else if (compareItems.length < 4) {
+                compareItems.push(id);
+            } else {
+                alert('最多只能对比4个房源');
+                return;
+            }
+            saveData();
+            renderList();
+            updateCompareBar();
+        }
+        
+        function updateCompareBar() {
+            const bar = document.getElementById('compareBar');
+            const compareHouses = houses.filter(h => compareItems.includes(h.id));
+            
+            if (compareItems.length > 0) {
+                bar.classList.add('active');
+                document.getElementById('compareListBar').innerHTML = compareHouses.map(h => 
+                    `<span class="compare-item">${h.name} <span style="cursor:pointer;color:#dc3545;" onclick="toggleCompare(${h.id})">×</span></span>`
+                ).join('');
+            } else {
+                bar.classList.remove('active');
+            }
+        }
+        
+        function showCompare() {
+            if (compareItems.length < 2) {
+                alert('请至少选择2个房源');
+                return;
+            }
+            document.querySelectorAll('.tab')[3].click();
+        }
+        
+        function deleteHouse(id) {
+            if (confirm('确定删除这个房源吗？')) {
+                houses = houses.filter(h => h.id !== id);
+                favorites = favorites.filter(f => f !== id);
+                compareItems = compareItems.filter(c => c !== id);
+                saveData();
+                renderList();
+                updateCompareBar();
+            }
+        }
+        
+        renderList();
+        updateCompareBar();
+    </script>
+</body>
+</html>
